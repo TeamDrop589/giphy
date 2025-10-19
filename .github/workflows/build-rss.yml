@@ -1,0 +1,42 @@
+name: Build GIPHY RSS
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 * * * *"   # hourly (change to */15 for every 15 min)
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install deps
+        run: npm install
+
+      - name: Build rss.xml
+        env:
+          GIPHY_API_KEY: ${{ secrets.GIPHY_API_KEY }}
+        run: npm run build
+
+      - name: Commit & push if changed
+        run: |
+          if [[ -n "$(git status --porcelain docs/rss.xml)" ]]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add docs/rss.xml
+            git commit -m "chore: auto-build rss.xml"
+            git pull --rebase origin main
+            git push
+          else
+            echo "No changes."
+          fi
