@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<rss version="2.0">
+  <channel>
+    <title>Drop Giphy Feed</title>
+    <link>https://giphy.com/dropandy</link>
+    <description>Official DROP verified GIFs and animations</description>
+    <language>en</language>
+    <lastBuildDate>2025-10-19</lastBuildDate>
+
+    <item>
+      <title>Drop Rocket Ride</title>
+      <link>https://giphy.com/gifs/dropandy-rocket-ride-abc123</link>
+      <description>Drop flying to the moon 🚀</description>
+      <enclosure url="https://media.giphy.com/media/abc123/giphy.gif" type="image/gif" />
+      <guid>https://giphy.com/gifs/dropandy-rocket-ride-abc123</guid>
+    </item>
+
+    <item>
+      <title>Drop Celebration</title>
+      <link>https://giphy.com/gifs/dropandy-celebration-def456</link>
+      <description>Drop celebrating a milestone 🎉</description>
+      <enclosure url="https://media.giphy.com/media/def456/giphy.gif" type="image/gif" />
+      <guid>https://giphy.com/gifs/dropandy-celebration-def456</guid>
+    </item>
+
+    <item>
+      <title>Drop Thumbs Up</title>
+      <link>https://giphy.com/gifs/dropandy-thumbs-up-ghi789</link>
+      <description>Drop gives a thumbs up 👍</description>
+      <enclosure url="https://media.giphy.com/media/ghi789/giphy.gif" type="image/gif" />
+      <guid>https://giphy.com/gifs/dropandy-thumbs-up-ghi789</guid>
+    </item>
+  </channel>
+</rss>
