@@ -184,4 +184,28 @@ async function main() {
   const now = new Date().toUTCString();
   const channelTitle = "DROP Official GIPHY Feed";
   const channelLink = SITE_BASE;
-  const channelDesc = "DROP GIFs auto
+  const channelDesc = "DROP GIFs auto-published to Pinterest (100 new per day).";
+
+  const itemsXml = items.map(itemXml).join("\n");
+
+  const rss = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+<channel>
+  <title>${escapeXml(channelTitle)}</title>
+  <link>${escapeXml(channelLink)}</link>
+  <description>${escapeXml(channelDesc)}</description>
+  <lastBuildDate>${now}</lastBuildDate>
+${itemsXml}
+</channel>
+</rss>
+`;
+
+  // 7) write the feed
+  await writeFile(RSS_PATH, rss, "utf-8");
+  console.log(`Wrote ${RSS_PATH} with ${items.length} items.`);
+}
+
+main().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});
