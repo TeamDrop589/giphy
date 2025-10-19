@@ -1,9 +1,9 @@
 name: Build GIPHY RSS
 
 on:
-  workflow_dispatch:
+  workflow_dispatch: {}                 # manual button
   schedule:
-    - cron: "0 * * * *"   # hourly (change to */15 for every 15 min)
+    - cron: "0 * * * *"                 # run hourly (UTC). Change if you prefer
 
 permissions:
   contents: write
@@ -12,31 +12,32 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
         with:
           node-version: 20
 
-      - name: Install deps
-        run: npm install
-
+      # Optional: if you add GIPHY_USERNAME and GIPHY_API_KEY as repo secrets,
+      # this script will try to fetch newest uploads automatically.
       - name: Build rss.xml
         env:
-          GIPHY_API_KEY: ${{ secrets.GIPHY_API_KEY }}
-        run: npm run build
+          GIPHY_USERNAME: ${{ secrets.GIPHY_USERNAME }}   # optional
+          GIPHY_API_KEY:  ${{ secrets.GIPHY_API_KEY }}    # optional
+          SITE_URL:       https://xrp-drop.com
+          FEED_TITLE:     "DROP Official GIPHY Feed"
+          FEED_DESC:      "DROP GIFs auto-published to Pinterest"
+          DAILY_LIMIT:    "100"
+        run: node scripts/build-rss.js
 
       - name: Commit & push if changed
         run: |
-          if [[ -n "$(git status --porcelain docs/rss.xml)" ]]; then
-            git config user.name "github-actions[bot]"
+          if [[ -n "$(git status --porcelain docs/)" ]]; then
+            git config user.name  "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add docs/rss.xml
+            git add docs/rss.xml docs/state.json || true
             git commit -m "chore: auto-build rss.xml"
-            git pull --rebase origin main
             git push
-          else
-            echo "No changes."
           fi
