@@ -1,43 +1,33 @@
 name: Build GIPHY RSS
 
 on:
-  workflow_dispatch: {}                 # manual button
   schedule:
-    - cron: "0 * * * *"                 # run hourly (UTC). Change if you prefer
-
-permissions:
-  contents: write
+    - cron: "0 9 * * *" # Runs every day at 9 AM UTC
+  workflow_dispatch: # Allows manual run
 
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Node
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
 
-      # Optional: if you add GIPHY_USERNAME and GIPHY_API_KEY as repo secrets,
-      # this script will try to fetch newest uploads automatically.
+      - name: Install dependencies
+        run: npm install node-fetch@3
+
       - name: Build rss.xml
-        env:
-          GIPHY_USERNAME: ${{ secrets.GIPHY_USERNAME }}   # optional
-          GIPHY_API_KEY:  ${{ secrets.GIPHY_API_KEY }}    # optional
-          SITE_URL:       https://xrp-drop.com
-          FEED_TITLE:     "DROP Official GIPHY Feed"
-          FEED_DESC:      "DROP GIFs auto-published to Pinterest"
-          DAILY_LIMIT:    "100"
         run: node scripts/build-rss.js
 
-      - name: Commit & push if changed
+      - name: Commit and push if changed
         run: |
-          if [[ -n "$(git status --porcelain docs/)" ]]; then
-            git config user.name  "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add docs/rss.xml docs/state.json || true
-            git commit -m "chore: auto-build rss.xml"
-            git push
-          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add docs/rss.xml
+          git diff --quiet && git diff --staged --quiet || git commit -m "auto-build rss.xml"
+          git push
