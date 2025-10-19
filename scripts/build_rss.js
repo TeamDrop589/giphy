@@ -1,120 +1,199 @@
-// Auto-build Pinterest RSS from GIPHY uploads/search
-// Output: docs/rss.xml  (served by GitHub Pages)
+/* Build rss.xml for Pinterest Auto-publish
+ * - Outputs: docs/rss.xml
+ * - State   : docs/state.json (tracks 100/day cap, seen IDs)
+ * - Optional GIPHY auto-discovery if GIPHY_USERNAME + GIPHY_API_KEY envs are set
+ */
 
-// ---- CONFIG ----
-const SITE = "https://xrp-drop.com";                         // your claimed domain
-const LINK_TEMPLATE = (id, slug) => `${SITE}/gifs?g=${id}`;  // single landing page with query
-const CHANNEL_QUERIES = [
-  // Put a few broad queries that catch your GIFs (add/remove freely)
-  "Drop Andy", "Drop Meme", "DROP XRPL", "xrp drop", "drop raindrop"
-];
-// If you know your GIPHY username, add it here to bias results in titles/descriptions:
-const BRAND = "DROP";
-// How many GIFs to include in the feed (Pinterest can handle large feeds; keep it sane)
-const LIMIT = 100;
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
 
-// ---- CODE ----
-import fs from "fs";
-import fetch from "node-fetch";
+// ---------- constants / env ----------
+const __filename = fileURLToPath(import.meta.url);
+const __dirname  = path.dirname(__filename);
 
-// GIPHY API pieces
-const API_KEY = process.env.GIPHY_API_KEY; // <-- add in GitHub Secrets
-const BASE = "https://api.giphy.com/v1/gifs/search";
+const DOCS_DIR   = path.join(__dirname, "..", "docs");
+const STATE_FILE = path.join(DOCS_DIR, "state.json");
+const FEED_FILE  = path.join(DOCS_DIR, "rss.xml");
 
-if (!API_KEY) {
-  console.error("Missing GIPHY_API_KEY env var");
-  process.exit(1);
+// Site/feed metadata
+const SITE_URL   = process.env.SITE_URL   || "https://xrp-drop.com";
+const FEED_TITLE = process.env.FEED_TITLE || "DROP Official GIPHY Feed";
+const FEED_DESC  = process.env.FEED_DESC  || "DROP GIFs auto-published to Pinterest";
+
+// Daily cap (string env -> number)
+const DAILY_LIMIT = Math.max(1, Number(process.env.DAILY_LIMIT || "100"));
+
+// Optional GIPHY auto-discovery
+const GIPHY_USERNAME = (process.env.GIPHY_USERNAME || "").trim();
+const GIPHY_API_KEY  = (process.env.GIPHY_API_KEY  || "").trim();
+
+// Local fallback list (optional) if you don't use the API.
+// Put one GIF ID per line in data/ids.txt (not required).
+const LOCAL_IDS_FILE = path.join(__dirname, "..", "data", "ids.txt");
+
+// ---------- helpers ----------
+function todayStr() {
+  const d = new Date();
+  const yyyy = d.getUTCFullYear();
+  const mm   = String(d.getUTCMonth() + 1).padStart(2, "0");
+  const dd   = String(d.getUTCDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
 }
 
-function rssDate(d = new Date()) {
-  return d.toUTCString(); // RFC-822-ish ok for RSS
+function rfc822(date) {
+  return new Date(date).toUTCString();
 }
 
-function makeItem({ id, title = "", gifUrl, pubDate }) {
-  const cleanTitle = title || `${BRAND} GIF ${id}`;
-  const link = LINK_TEMPLATE(id, "");
-  const guid = id;
-  const desc = `${BRAND} official GIF • ID ${id}`;
-  return `
-    <item>
-      <title>${escapeXml(cleanTitle)}</title>
-      <link>${escapeXml(link)}</link>
-      <description>${escapeXml(desc)}</description>
-      <enclosure url="${escapeXml(gifUrl)}" type="image/gif"/>
-      <guid isPermaLink="false">${escapeXml(guid)}</guid>
-      <pubDate>${rssDate(pubDate)}</pubDate>
-    </item>`;
+function ensureDirs() {
+  if (!existsSync(DOCS_DIR)) mkdirSync(DOCS_DIR, { recursive: true });
 }
 
-function escapeXml(s) {
-  return String(s)
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&apos;");
+function loadState() {
+  if (!existsSync(STATE_FILE)) {
+    return { day: todayStr(), publishedToday: 0, seen: [] };
+  }
+  try {
+    return JSON.parse(readFileSync(STATE_FILE, "utf8"));
+  } catch {
+    return { day: todayStr(), publishedToday: 0, seen: [] };
+  }
 }
 
-async function fetchSearch(q, limit = 50, offset = 0) {
-  const url = new URL(BASE);
-  url.searchParams.set("api_key", API_KEY);
-  url.searchParams.set("q", q);
-  url.searchParams.set("limit", String(limit));
-  url.searchParams.set("offset", String(offset));
-  url.searchParams.set("sort", "recent");
-  const r = await fetch(url.toString());
-  if (!r.ok) throw new Error(`GIPHY search failed: ${r.status}`);
-  const j = await r.json();
-  return j.data || [];
+function saveState(state) {
+  writeFileSync(STATE_FILE, JSON.stringify(state, null, 2));
 }
 
-function toGifUrl(obj) {
-  // Most reliable direct GIF url
-  // Prefer images.original or images.downsized if needed
-  const o = obj?.images?.original?.url || obj?.images?.downsized?.url;
-  if (o) return o;
-  // fallback to canonical media pattern
-  return `https://media.giphy.com/media/${obj.id}/giphy.gif`;
+function loadLocalIds() {
+  if (!existsSync(LOCAL_IDS_FILE)) return [];
+  const raw = readFileSync(LOCAL_IDS_FILE, "utf8");
+  return raw
+    .split(/\r?\n/)
+    .map(s => s.trim())
+    .filter(Boolean);
 }
 
-async function main() {
-  // Pull batches from multiple queries, merge & de-dupe by ID
-  const seen = new Map(); // id -> gifObject
-  for (const q of CHANNEL_QUERIES) {
-    // Pull first 50 recent per query; adjust if needed
-    const batch = await fetchSearch(q, 50, 0);
-    for (const g of batch) if (!seen.has(g.id)) seen.set(g.id, g);
-    if (seen.size >= LIMIT) break;
+// Build a media URL that works for enclosures.
+// Using media.giphy.com is stable and redirects to the right CDN host.
+function mediaUrl(id) {
+  return `https://media.giphy.com/media/${id}/giphy.gif`;
+}
+
+// Create a nice on-site link that lives on your domain.
+function siteLink(id) {
+  return `${SITE_URL.replace(/\/+$/,"")}/gifs?g=${encodeURIComponent(id)}`;
+}
+
+// ---------- GIPHY auto-discovery (optional) ----------
+async function fetchNewestIdsFromGiphy(maxToFetch = 200) {
+  if (!GIPHY_USERNAME || !GIPHY_API_KEY) return [];
+
+  const ids = [];
+  // Strategy: call "search" with empty query and sort by recent uploads.
+  // (GIPHY’s public API is limited; this pattern generally returns newest for a user.)
+  // If your account name contains spaces/case, use the exact GIPHY username.
+  const pageSize = 50;
+  for (let offset = 0; offset < maxToFetch; offset += pageSize) {
+    const url =
+      `https://api.giphy.com/v1/gifs/search?api_key=${encodeURIComponent(GIPHY_API_KEY)}` +
+      `&q=&limit=${pageSize}&offset=${offset}&sort=recent&username=${encodeURIComponent(GIPHY_USERNAME)}`;
+
+    const res = await fetch(url);
+    if (!res.ok) break;
+    const json = await res.json();
+    if (!json || !Array.isArray(json.data) || json.data.length === 0) break;
+
+    for (const it of json.data) {
+      if (it && it.id) ids.push(it.id);
+    }
+    if (json.data.length < pageSize) break; // done
   }
 
-  const items = Array.from(seen.values())
-    .slice(0, LIMIT)
-    .map(g => {
-      const gifUrl = toGifUrl(g);
-      const title = g.title || g.slug || `${BRAND} GIF`;
-      const ts = g.import_datetime && g.import_datetime !== "1970-01-01 00:00:00" ? new Date(g.import_datetime) : new Date();
-      return makeItem({ id: g.id, title, gifUrl, pubDate: ts });
-    })
-    .join("\n");
+  // Remove dups, keep order
+  return Array.from(new Set(ids));
+}
 
-  const xml = `<?xml version="1.0" encoding="UTF-8" ?>
+// ---------- MAIN ----------
+(async function main() {
+  ensureDirs();
+
+  // Load daily state
+  const state = loadState();
+  const today = todayStr();
+  if (state.day !== today) {
+    state.day = today;
+    state.publishedToday = 0;
+  }
+  state.seen ||= [];
+
+  // 1) Collect candidate IDs (prefer API if creds provided; else fall back to local list)
+  let candidateIds = [];
+  try {
+    const apiIds = await fetchNewestIdsFromGiphy(500);
+    if (apiIds.length) {
+      candidateIds = apiIds;
+    } else {
+      candidateIds = loadLocalIds();
+    }
+  } catch {
+    candidateIds = loadLocalIds();
+  }
+
+  // 2) Filter out ones we’ve already seen, and honor the 100/day cap
+  const newIds = candidateIds.filter(id => !state.seen.includes(id));
+  const slots = Math.max(0, DAILY_LIMIT - state.publishedToday);
+  const take = newIds.slice(0, slots);
+
+  // 3) Update state
+  if (take.length) {
+    state.publishedToday += take.length;
+    state.seen.push(...take);
+    // Also keep state.seen from growing unbounded (trim oldest if > 100k)
+    if (state.seen.length > 100000) {
+      state.seen = state.seen.slice(-80000);
+    }
+  }
+
+  // 4) Build the feed items = newest first (use *all seen*, but the most recent at top)
+  // If you want to cap total feed size, change MAX_FEED_ITEMS.
+  const MAX_FEED_ITEMS = 2000;
+  const feedIds = state.seen.slice(-MAX_FEED_ITEMS).reverse();
+
+  const now = new Date();
+  const lastBuild = rfc822(now);
+
+  let itemsXml = "";
+  for (const id of feedIds) {
+    itemsXml +=
+`  <item>
+    <title>Drop Xrp GIF by $DROP</title>
+    <link>${siteLink(id)}</link>
+    <description>DROP official GIF • ID ${id}</description>
+    <enclosure url="${mediaUrl(id)}" type="image/gif"/>
+    <guid isPermaLink="false">${id}</guid>
+    <pubDate>${rfc822(now)}</pubDate>
+  </item>
+`;
+  }
+
+  const rss =
+`<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0">
-  <channel>
-    <title>${escapeXml(BRAND)} Official GIPHY Feed</title>
-    <link>${escapeXml(SITE)}</link>
-    <description>${escapeXml(BRAND)} GIFs auto-published to Pinterest</description>
-    <lastBuildDate>${rssDate()}</lastBuildDate>
-${items}
-  </channel>
+<channel>
+  <title>${FEED_TITLE}</title>
+  <link>${SITE_URL}</link>
+  <description>${FEED_DESC}</description>
+  <lastBuildDate>${lastBuild}</lastBuildDate>
+${itemsXml}</channel>
 </rss>
 `;
 
-  if (!fs.existsSync("docs")) fs.mkdirSync("docs");
-  fs.writeFileSync("docs/rss.xml", xml, "utf8");
-  console.log(`Wrote docs/rss.xml with ${seen.size > LIMIT ? LIMIT : seen.size} items`);
-}
+  writeFileSync(FEED_FILE, rss, "utf8");
+  saveState(state);
 
-await main().catch(e => {
-  console.error(e);
+  console.log(`Built ${FEED_FILE}`);
+  console.log(`Today used: ${state.publishedToday}/${DAILY_LIMIT}. Total items in feed: ${feedIds.length}`);
+})().catch(err => {
+  console.error(err);
   process.exit(1);
 });
