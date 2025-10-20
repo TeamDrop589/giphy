@@ -1,72 +1,67 @@
-import fs from "fs";
-import fetch from "node-fetch";
+// scripts/build-rss.js
+const fs = require("fs");
+const fetch = require("node-fetch");
 
-const xmlEscape = (s) =>
-  s.replace(/&/g, "&amp;")
-   .replace(/</g, "&lt;")
-   .replace(/>/g, "&gt;")
-   .replace(/"/g, "&quot;")
-   .replace(/'/g, "&apos;");
+// 🔧 CHANGE THIS to your actual Giphy username:
+const GIPHY_USERNAME = "DROP-Team-xrp-ripple-xrpl";
+const GIPHY_API_KEY = "dc6zaTOxFJmzC"; // public beta key (safe to use)
+const OUTPUT_FILE = "docs/rss.xml";
+const MAX_ITEMS = 100;
+
+// Function to escape XML characters
+const xmlEscape = (str) =>
+  str
+    ? str
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&apos;")
+    : "";
+
+// Fetch the user’s GIFs from Giphy
+async function fetchGifs() {
+  const url = `https://api.giphy.com/v1/gifs/search?api_key=${GIPHY_API_KEY}&q=${encodeURIComponent(
+    GIPHY_USERNAME
+  )}&limit=${MAX_ITEMS}&rating=g`;
+  const res = await fetch(url);
+  const data = await res.json();
+  return data.data.map((gif) => ({
+    id: gif.id,
+    title: gif.title || "Memecoin XRP GIF by $DROP",
+    gifUrl: gif.images.original.url,
+    publishedAt: new Date(gif.import_datetime).toUTCString(),
+  }));
+}
 
 async function buildRSS() {
-  const apiKey = process.env.GIPHY_API_KEY;
-  const username = "DROP-Team-xrp-ripple-xrpl"; // your Giphy username
-  const limit = 100;
+  const gifs = await fetchGifs();
 
-  console.log(`Fetching latest ${limit} GIFs from Giphy...`);
+  let rss = `<?xml version="1.0" encoding="UTF-8"?>\n`;
+  rss += `<rss version="2.0">\n<channel>\n`;
+  rss += `<title>$DROP Official GIPHY Feed</title>\n`;
+  rss += `<link>https://xrp-drop.com</link>\n`;
+  rss += `<description>$DROP GIFs auto-published to Pinterest (100 new per day).</description>\n`;
+  rss += `<lastBuildDate>${new Date().toUTCString()}</lastBuildDate>\n`;
 
-  const res = await fetch(
-    `https://api.giphy.com/v1/gifs/search?api_key=${apiKey}&q=${username}&limit=${limit}&sort=recent`
-  );
-  const data = await res.json();
+  gifs.forEach((gif) => {
+    const link = `https://xrp-drop.com/gifs/${gif.id}`;
+    rss += `<item>\n`;
+    rss += `  <title><![CDATA[${gif.title}]]></title>\n`;
+    rss += `  <link>${link}</link>\n`;
+    rss += `  <guid>${link}</guid>\n`;
+    rss += `  <enclosure url="${gif.gifUrl}" type="image/gif"/>\n`;
+    rss += `  <pubDate>${gif.publishedAt}</pubDate>\n`;
+    rss += `</item>\n`;
+  });
 
-  if (!data.data || !Array.isArray(data.data)) {
-    console.error("Invalid response from Giphy:", data);
-    process.exit(1);
-  }
+  rss += `</channel>\n</rss>`;
 
-  console.log(`Fetched ${data.data.length} GIFs. Building RSS...`);
-
-  const items = [];
-
-  for (const gif of data.data) {
-    const gifId = gif.id;
-    const title = gif.title || `GIF ${gifId}`;
-    const pubDate = new Date(gif.import_datetime || Date.now()).toUTCString();
-    const giphyUrl = `https://giphy.com/gifs/${username}-${gifId}`;
-    const redirectUrl = `https://xrp-drop.com/g/${gifId}`;
-    const mediaUrl = xmlEscape(gif.images.original.url);
-
-    items.push(`
-      <item>
-        <title><![CDATA[${title}]]></title>
-        <link>${redirectUrl}</link>
-        <guid isPermaLink="true">${redirectUrl}</guid>
-        <enclosure url="${mediaUrl}" length="0" type="image/gif"/>
-        <pubDate>${pubDate}</pubDate>
-      </item>
-    `);
-  }
-
-  const rss = `<?xml version="1.0" encoding="UTF-8"?>
-<rss version="2.0"
-  xmlns:atom="http://www.w3.org/2005/Atom"
-  xmlns:media="http://search.yahoo.com/mrss/">
-  <channel>
-    <title>DROP Official GIPHY Feed</title>
-    <link>https://xrp-drop.com</link>
-    <description>DROP GIFs auto-published to Pinterest (100 per day).</description>
-    <lastBuildDate>${new Date().toUTCString()}</lastBuildDate>
-    <atom:link href="https://xrp-drop.com/rss.xml" rel="self" type="application/rss+xml"/>
-    ${items.join("\n")}
-  </channel>
-</rss>`;
-
-  fs.writeFileSync("docs/rss.xml", rss, "utf8");
-  console.log("✅ RSS feed updated successfully → docs/rss.xml");
+  fs.writeFileSync(OUTPUT_FILE, rss, "utf8");
+  console.log(`✅ RSS feed generated successfully with ${gifs.length} items`);
 }
 
 buildRSS().catch((err) => {
-  console.error("Error building RSS:", err);
+  console.error("❌ Failed to build RSS:", err);
   process.exit(1);
 });
