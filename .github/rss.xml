@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"
+  xmlns:atom="http://www.w3.org/2005/Atom"
+  xmlns:media="http://search.yahoo.com/mrss/">
+  <channel>
+    <title>DROP Official GIPHY Feed</title>
+    <link>https://xrp-drop.com</link>
+    <description>DROP GIFs auto-published to Pinterest (100 per day).</description>
+    <lastBuildDate>Mon, 20 Oct 2025 15:30:00 GMT</lastBuildDate>
+    <atom:link href="https://xrp-drop.com/rss.xml" rel="self" type="application/rss+xml"/>
+
+    <item>
+      <title><![CDATA[Memecoin XRP GIF by $DROP]]></title>
+      <link>https://xrp-drop.com/g/JXsGv6GZWbqWrEeQyD</link>
+      <guid isPermaLink="true">https://xrp-drop.com/g/JXsGv6GZWbqWrEeQyD</guid>
+      <enclosure
+        url="https://media0.giphy.com/media/JXsGv6GZWbqWrEeQyD/giphy.gif?cid=f265b6856t6soducjm0f0b407jx44wvtlfip36415c8dcun4&amp;ep=v1_gifs_search&amp;rid=giphy.gif&amp;ct=g"
+        length="0"
+        type="image/gif"/>
+      <pubDate>Mon, 20 Oct 2025 15:30:00 GMT</pubDate>
+    </item>
+  </channel>
+</rss>
