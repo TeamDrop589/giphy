@@ -1,11 +1,3 @@
-{
-  "name": "drop-giphy-rss",
-  "private": true,
-  "type": "module",
-  "dependencies": {
-    "node-fetch": "^3.3.2"
-  },
-  "scripts": {
-    "build": "node scripts/build_rss.js"
-  }
+"scripts": {
+  "build": "node scripts/build-rss.cjs"
 }
