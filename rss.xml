@@ -1,1 +1,36 @@
-https://xrp-drop.com/rss.xml
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"
+  xmlns:atom="http://www.w3.org/2005/Atom"
+  xmlns:media="http://search.yahoo.com/mrss/">
+
+  <channel>
+    <title>DROP Official GIPHY Feed</title>
+    <link>https://xrp-drop.com</link>
+    <description>DROP GIFs auto-published to Pinterest (100 new per day).</description>
+    <lastBuildDate>Sun, 19 Oct 2025 13:12:41 GMT</lastBuildDate>
+    <atom:link href="https://rss.xrp-drop.com/rss.xml" rel="self" type="application/rss+xml"/>
+
+    <item>
+      <title><![CDATA[ Memecoin Xrp GIF by $DROP ]]></title>
+      <link>https://giphy.com/gifs/DROP-Team-xrp-ripple-xrpl-JXsGv6GZWbqWrEeQyD</link>
+      <guid isPermaLink="false">JXsGv6GZWbqWrEeQyD</guid>
+      <enclosure 
+        url="https://media0.giphy.com/media/JXsGv6GZWbqWrEeQyD/giphy.gif?cid=f265b6856t6soducjm0f0b407jx44wvtlfip36415c8dcun4&amp;ep=v1_gifs_search&amp;rid=giphy.gif&amp;ct=g"
+        length="0"
+        type="image/gif"/>
+      <pubDate>Sun, 19 Oct 2025 13:12:41 GMT</pubDate>
+    </item>
+
+    <item>
+      <title><![CDATA[ Memecoin Xrp GIF by $DROP ]]></title>
+      <link>https://giphy.com/gifs/DROP-Team-xrp-ripple-xrpl-KuVtfhfo70RrvUWSa3C</link>
+      <guid isPermaLink="false">KuVtfhfo70RrvUWSa3C</guid>
+      <enclosure 
+        url="https://media4.giphy.com/media/KuVtfhfo70RrvUWSa3C/giphy.gif?cid=f265b6856t6soducjm0f0b407jx44wvtlfip36415c8dcun4&amp;ep=v1_gifs_search&amp;rid=giphy.gif&amp;ct=g"
+        length="0"
+        type="image/gif"/>
+      <pubDate>Sun, 19 Oct 2025 13:12:41 GMT</pubDate>
+    </item>
+
+  </channel>
+</rss>
