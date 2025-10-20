@@ -1,60 +1,13 @@
-// scripts/build-rss.js
-const fs = require("fs");
-
-// Simulated Giphy data loader (replace with your real logic)
-const giphyData = [
-  {
-    id: "JXsGv6GZWbqWrEeQyD",
-    title: "Memecoin XRP GIF by $DROP",
-    gifUrl: "https://media.giphy.com/media/JXsGv6GZWbqWrEeQyD/giphy.gif",
-    publishedAt: "Sun, 19 Oct 2025 13:12:41 GMT",
-  },
-  {
-    id: "KuVtfhO70RrvUWSa3C",
-    title: "Memecoin XRP GIF by $DROP",
-    gifUrl: "https://media.giphy.com/media/KuVtfhO70RrvUWSa3C/giphy.gif",
-    publishedAt: "Sun, 19 Oct 2025 13:12:41 GMT",
-  },
-  {
-    id: "j1mJsgFccyHKRNgEpS",
-    title: "Memecoin XRP GIF by $DROP",
-    gifUrl: "https://media.giphy.com/media/j1mJsgFccyHKRNgEpS/giphy.gif",
-    publishedAt: "Sun, 19 Oct 2025 13:12:41 GMT",
-  },
-];
-
-// Function to escape XML characters
-const xmlEscape = (str) =>
-  str
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&apos;");
-
-// Build the RSS XML string
-let rss = `<?xml version="1.0" encoding="UTF-8"?>\n`;
-rss += `<rss version="2.0">\n<channel>\n`;
-rss += `<title>$DROP Official GIPHY Feed</title>\n`;
-rss += `<link>https://xrp-drop.com</link>\n`;
-rss += `<description>$DROP GIFs auto-published to Pinterest (100 new per day).</description>\n`;
-rss += `<lastBuildDate>${new Date().toUTCString()}</lastBuildDate>\n`;
-
-// Generate <item> entries
-giphyData.forEach((gif) => {
-  const itemLink = `https://xrp-drop.com/gifs/${gif.id}`; // Domain-based link for Pinterest
-  rss += `<item>\n`;
-  rss += `  <title><![CDATA[${gif.title}]]></title>\n`;
-  rss += `  <link>${itemLink}</link>\n`;
-  rss += `  <guid>${itemLink}</guid>\n`;
-  rss += `  <enclosure url="${gif.gifUrl}" type="image/gif"/>\n`;
-  rss += `  <pubDate>${gif.publishedAt}</pubDate>\n`;
-  rss += `</item>\n`;
-});
-
-rss += `</channel>\n</rss>`;
-
-// Save to /docs/rss.xml for GitHub Pages
-fs.writeFileSync("docs/rss.xml", rss, "utf8");
-
-console.log("✅ RSS feed generated successfully at /docs/rss.xml");
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"
+  xmlns:atom="http://www.w3.org/2005/Atom"
+  xmlns:media="http://search.yahoo.com/mrss/">
+  <channel>
+    <title>DROP Official GIPHY Feed</title>
+    <link>https://xrp-drop.com</link>
+    <description>DROP GIFs auto-published to Pinterest (100 per day).</description>
+    <lastBuildDate>Mon, 20 Oct 2025 14:59:06 GMT</lastBuildDate>
+    <atom:link href="https://xrp-drop.com/rss.xml" rel="self" type="application/rss+xml"/>
+    
+  </channel>
+</rss>
